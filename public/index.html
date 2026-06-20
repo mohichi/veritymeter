@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VerityMeter | AIによる記事の信憑性診断</title>
+<meta name="description" content="ニュース記事のURLを入力するだけで、AIが信憑性をスコアで診断。事実と憶測、誇張表現を見抜きます。">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --color-bg: #FAFAF8;
+    --color-surface: #FFFFFF;
+    --color-border: #E5E3DD;
+    --color-text-primary: #1A1A18;
+    --color-text-secondary: #5C5A52;
+    --color-text-tertiary: #918F86;
+    --color-accent: #1A1A18;
+
+    --color-success-bg: #EFF6E9;
+    --color-success-text: #3B6D11;
+    --color-success-border: #C9E0BA;
+
+    --color-warning-bg: #FDF6E8;
+    --color-warning-text: #BA7517;
+    --color-warning-border: #F0DDB0;
+
+    --color-danger-bg: #FBEDEC;
+    --color-danger-text: #A32D2D;
+    --color-danger-border: #F0C6C4;
+
+    --color-info-bg: #EBF1FA;
+    --color-info-text: #2A5A9C;
+    --color-info-border: #C7D9F0;
+
+    --radius-md: 8px;
+    --radius-lg: 14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: var(--color-bg);
+    color: var(--color-text-primary);
+    line-height: 1.6;
+  }
+
+  header {
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+  .header-inner {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 17px;
+  }
+  .logo i { color: var(--color-text-secondary); }
+  .header-links { display: flex; gap: 20px; font-size: 13px; }
+  .header-links a { color: var(--color-text-secondary); text-decoration: none; }
+  .header-links a:hover { color: var(--color-text-primary); }
+
+  main { max-width: 720px; margin: 0 auto; padding: 2.5rem 20px 4rem; }
+
+  .hero { text-align: center; margin-bottom: 2rem; }
+  .hero-badge {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--color-info-text);
+    background: var(--color-info-bg);
+    border: 1px solid var(--color-info-border);
+    border-radius: 99px;
+    padding: 4px 14px;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+  .hero h1 { font-size: 26px; font-weight: 600; margin-bottom: 10px; }
+  .hero p { font-size: 15px; color: var(--color-text-secondary); }
+
+  .input-area {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+  .input-row { display: flex; gap: 8px; }
+  .input-wrap { flex: 1; position: relative; display: flex; align-items: center; }
+  .input-wrap input {
+    width: 100%;
+    font-size: 14px;
+    padding: 0 36px 0 14px;
+    height: 44px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+  }
+  .input-wrap input:focus { outline: none; border-color: var(--color-text-tertiary); }
+  .clear-btn {
+    display: none;
+    position: absolute;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: var(--color-border);
+    color: var(--color-text-secondary);
+    border-radius: 50%;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    line-height: 1;
+    padding: 0;
+  }
+  .clear-btn:hover { background: var(--color-text-tertiary); color: #fff; }
+  .clear-btn.visible { display: flex; }
+  .btn-check {
+    height: 44px;
+    padding: 0 22px;
+    font-size: 14px;
+    font-weight: 600;
+    background: var(--color-text-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-check:hover { opacity: 0.85; }
+  .btn-check:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .examples { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .example-chip {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 99px;
+    padding: 5px 14px;
+    cursor: pointer;
+  }
+  .example-chip:hover { border-color: var(--color-text-tertiary); color: var(--color-text-primary); }
+
+  .loading {
+    display: none;
+    text-align: center;
+    padding: 3rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+  .loading-spinner {
+    width: 32px; height: 32px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-text-primary);
+    border-radius: 50%;
+    margin: 0 auto 14px;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading p { font-size: 14px; color: var(--color-text-secondary); }
+
+  .result { display: none; }
+
+  .score-section {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1.75rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1.75rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+  .meter-wrap { flex-shrink: 0; position: relative; width: 110px; height: 65px; }
+  .meter-label {
+    position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    font-size: 26px; font-weight: 700;
+  }
+  .meter-sub {
+    position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; color: var(--color-text-tertiary); white-space: nowrap;
+  }
+  .score-info { flex: 1; min-width: 0; }
+  .score-verdict { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .score-source { font-size: 12px; color: var(--color-text-tertiary); margin-bottom: 10px; word-break: break-all; }
+  .score-summary { font-size: 14px; color: var(--color-text-secondary); }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .tag { font-size: 11px; padding: 4px 12px; border-radius: 99px; border: 1px solid; font-weight: 500; }
+  .tag-danger { background: var(--color-danger-bg); color: var(--color-danger-text); border-color: var(--color-danger-border); }
+  .tag-warning { background: var(--color-warning-bg); color: var(--color-warning-text); border-color: var(--color-warning-border); }
+  .tag-success { background: var(--color-success-bg); color: var(--color-success-text); border-color: var(--color-success-border); }
+  .tag-info { background: var(--color-info-bg); color: var(--color-info-text); border-color: var(--color-info-border); }
+
+  .section-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .section-title {
+    font-size: 13px; font-weight: 600; color: var(--color-text-secondary);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 1rem; display: flex; align-items: center; gap: 6px;
+  }
+  .check-list { list-style: none; }
+  .check-list li {
+    display: flex; gap: 10px; padding: 9px 0;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 14px; align-items: flex-start;
+  }
+  .check-list li:last-child { border-bottom: none; }
+  .check-icon { flex-shrink: 0; margin-top: 2px; }
+
+  .warning-list { list-style: none; }
+  .warning-list li {
+    background: var(--color-warning-bg);
+    border: 1px solid var(--color-warning-border);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .warning-list li:last-child { margin-bottom: 0; }
+  .warning-excerpt { font-size: 12px; color: var(--color-warning-text); margin-top: 6px; font-style: italic; }
+
+  .footer-note {
+    font-size: 12px; color: var(--color-text-tertiary);
+    text-align: center; margin-top: 1.5rem; line-height: 1.8;
+  }
+
+  .error-box {
+    display: none;
+    background: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    font-size: 14px; color: var(--color-danger-text);
+    margin-bottom: 1rem;
+  }
+
+  footer {
+    border-top: 1px solid var(--color-border);
+    padding: 2rem 20px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--color-text-tertiary);
+  }
+
+  @media (max-width: 480px) {
+    .score-section { flex-direction: column; text-align: center; }
+    .input-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo"><i class="ti ti-scale"></i> VerityMeter</div>
+    <nav class="header-links">
+      <a href="#about">使い方</a>
+      <a href="#disclaimer">免責事項</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="hero-badge"><i class="ti ti-microscope"></i> AI信憑性診断</div>
+    <h1>その記事、信頼できますか？</h1>
+    <p>URLを貼るだけで、AIが記事の信憑性をスコアで診断します</p>
+  </div>
+
+  <div class="input-area">
+    <div class="input-row">
+      <div class="input-wrap">
+        <input type="text" id="url-input" placeholder="記事のURLを貼り付けてください" oninput="toggleClearBtn()" />
+        <button type="button" class="clear-btn" id="clear-btn" onclick="clearInput()" aria-label="入力をクリア">
+          <i class="ti ti-x"></i>
+        </button>
+      </div>
+      <button class="btn-check" id="check-btn" onclick="runCheck()">
+        <i class="ti ti-search"></i>診断する
+      </button>
+    </div>
+    <div class="examples">
+      <span style="font-size:12px; color:var(--color-text-tertiary); padding: 5px 0;">例：</span>
+      <button class="example-chip" onclick="fillExample('https://www3.nhk.or.jp/')">NHKニュース</button>
+      <button class="example-chip" onclick="fillExample('https://news.yahoo.co.jp/')">Yahoo!ニュース</button>
+    </div>
+  </div>
+
+  <div class="error-box" id="error-box">
+    <i class="ti ti-alert-circle"></i> <span id="error-msg"></span>
+  </div>
+
+  <div class="loading" id="loading">
+    <div class="loading-spinner"></div>
+    <p id="loading-msg">記事を取得して分析しています...</p>
+  </div>
+
+  <div class="result" id="result">
+    <div class="score-section">
+      <div class="meter-wrap">
+        <svg width="110" height="65" viewBox="0 0 100 60">
+          <path d="M10 55 A45 45 0 0 1 90 55" fill="none" stroke="#E5E3DD" stroke-width="8" stroke-linecap="round"/>
+          <path id="meter-arc" d="M10 55 A45 45 0 0 1 90 55" fill="none" stroke="#888" stroke-width="8" stroke-linecap="round" stroke-dasharray="0 141"/>
+        </svg>
+        <div class="meter-label" id="score-num">—</div>
+        <div class="meter-sub">/ 100</div>
+      </div>
+      <div class="score-info">
+        <div class="score-verdict" id="verdict-text">—</div>
+        <div class="score-source" id="source-url">—</div>
+        <div class="score-summary" id="summary-text">—</div>
+        <div class="tags" id="tags-area"></div>
+      </div>
+    </div>
+
+    <div class="section-card" id="positives-card">
+      <div class="section-title"><i class="ti ti-circle-check" style="color:var(--color-success-text)"></i> 信頼できる点</div>
+      <ul class="check-list" id="positives-list"></ul>
+    </div>
+
+    <div class="section-card" id="warnings-card">
+      <div class="section-title"><i class="ti ti-alert-triangle" style="color:var(--color-warning-text)"></i> 注意が必要な記述</div>
+      <ul class="warning-list" id="warnings-list"></ul>
+    </div>
+
+    <div class="section-card" id="verdict-card">
+      <div class="section-title"><i class="ti ti-scale"></i> 総評</div>
+      <p id="verdict-full" style="font-size:14px; color:var(--color-text-secondary);"></p>
+    </div>
+  </div>
+
+  <div class="footer-note" id="disclaimer">
+    AIによる分析は補助的なものであり、完全性・正確性を保証するものではありません。<br>
+    最終的な判断はご自身の確認と責任のもとで行ってください。
+  </div>
+</main>
+
+<footer id="about">
+  <p>VerityMeter — AIによる情報の目利き</p>
+  <p style="margin-top:6px;">© 2026 VerityMeter</p>
+</footer>
+
+<script>
+function fillExample(url) {
+  document.getElementById('url-input').value = url;
+  toggleClearBtn();
+}
+
+function toggleClearBtn() {
+  const input = document.getElementById('url-input');
+  const btn = document.getElementById('clear-btn');
+  if (input.value.length > 0) {
+    btn.classList.add('visible');
+  } else {
+    btn.classList.remove('visible');
+  }
+}
+
+function clearInput() {
+  const input = document.getElementById('url-input');
+  input.value = '';
+  toggleClearBtn();
+  input.focus();
+  // 結果やエラー表示も一緒にリセット
+  document.getElementById('error-box').style.display = 'none';
+  document.getElementById('result').style.display = 'none';
+}
+
+function setMeter(score) {
+  const arc = document.getElementById('meter-arc');
+  const total = 141;
+  const filled = (score / 100) * total;
+  arc.setAttribute('stroke-dasharray', filled + ' ' + (total - filled));
+  let color;
+  if (score >= 70) color = '#3B6D11';
+  else if (score >= 45) color = '#BA7517';
+  else color = '#A32D2D';
+  arc.setAttribute('stroke', color);
+}
+
+function getVerdictTag(score) {
+  if (score >= 80) return {label: '高信頼', cls: 'tag-success'};
+  if (score >= 65) return {label: '概ね信頼', cls: 'tag-info'};
+  if (score >= 45) return {label: '要注意', cls: 'tag-warning'};
+  return {label: '低信頼', cls: 'tag-danger'};
+}
+
+function showError(msg) {
+  const box = document.getElementById('error-box');
+  document.getElementById('error-msg').textContent = msg;
+  box.style.display = 'block';
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('check-btn').disabled = false;
+}
+
+const loadingMessages = ['記事を取得しています...', '文章を解析しています...', '情報源を確認しています...', '信憑性スコアを計算しています...'];
+let loadingTimer;
+
+function startLoadingMessages() {
+  let i = 0;
+  const el = document.getElementById('loading-msg');
+  el.textContent = loadingMessages[0];
+  loadingTimer = setInterval(() => {
+    i = (i + 1) % loadingMessages.length;
+    el.textContent = loadingMessages[i];
+  }, 2000);
+}
+
+async function runCheck() {
+  const url = document.getElementById('url-input').value.trim();
+  if (!url) { showError('URLを入力してください'); return; }
+  if (!url.startsWith('http')) { showError('正しいURLを入力してください（https://から始まるもの）'); return; }
+
+  document.getElementById('error-box').style.display = 'none';
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('check-btn').disabled = true;
+  startLoadingMessages();
+
+  try {
+    // 自サイトのサーバー側API（/api/check）を呼ぶ。APIキーはサーバー側にのみ保管されている。
+    const res = await fetch('/api/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+
+    clearInterval(loadingTimer);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('check-btn').disabled = false;
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      showError(json.error || 'エラーが発生しました');
+      return;
+    }
+
+    renderResult(json, url);
+
+  } catch(e) {
+    clearInterval(loadingTimer);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('check-btn').disabled = false;
+    showError('通信エラーが発生しました。インターネット接続を確認してください。');
+  }
+}
+
+function renderResult(d, url) {
+  const score = Math.min(100, Math.max(0, d.score || 0));
+  document.getElementById('score-num').textContent = score;
+  setMeter(score);
+
+  document.getElementById('verdict-text').textContent = d.verdict || '';
+  document.getElementById('source-url').textContent = url.length > 60 ? url.slice(0, 60) + '…' : url;
+  document.getElementById('summary-text').textContent = d.summary || '';
+
+  const tagsArea = document.getElementById('tags-area');
+  tagsArea.innerHTML = '';
+  const mainTag = getVerdictTag(score);
+  const pill = document.createElement('span');
+  pill.className = 'tag ' + mainTag.cls;
+  pill.textContent = mainTag.label;
+  tagsArea.appendChild(pill);
+  if (d.source_type) {
+    const st = document.createElement('span');
+    st.className = 'tag tag-info';
+    st.textContent = d.source_type;
+    tagsArea.appendChild(st);
+  }
+  (d.tags || []).forEach(t => {
+    const span = document.createElement('span');
+    span.className = 'tag tag-warning';
+    span.textContent = t;
+    tagsArea.appendChild(span);
+  });
+
+  const posList = document.getElementById('positives-list');
+  posList.innerHTML = '';
+  (d.positives || []).forEach(p => {
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="check-icon ti ti-circle-check" style="color:var(--color-success-text)"></span><span>' + p.text + '</span>';
+    posList.appendChild(li);
+  });
+  document.getElementById('positives-card').style.display = (d.positives && d.positives.length) ? '' : 'none';
+
+  const warnList = document.getElementById('warnings-list');
+  warnList.innerHTML = '';
+  (d.warnings || []).forEach(w => {
+    const li = document.createElement('li');
+    li.innerHTML = '<strong><i class="ti ti-alert-triangle"></i> ' + w.text + '</strong>' +
+      (w.excerpt ? '<div class="warning-excerpt">' + w.excerpt + '</div>' : '');
+    warnList.appendChild(li);
+  });
+  document.getElementById('warnings-card').style.display = (d.warnings && d.warnings.length) ? '' : 'none';
+
+  document.getElementById('verdict-full').textContent = d.verdict_full || '';
+  document.getElementById('result').style.display = 'block';
+}
+
+document.getElementById('url-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') runCheck();
+});
+</script>
+
+</body>
+</html>
