@@ -263,6 +263,108 @@
     font-size: 12px;
     color: var(--color-text-tertiary);
   }
+  footer a { color: var(--color-text-tertiary); }
+
+  /* 記事プレビューカード */
+  .article-preview {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .article-preview-icon {
+    flex-shrink: 0;
+    width: 36px; height: 36px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--color-text-tertiary);
+    font-size: 16px;
+  }
+  .article-preview-body { min-width: 0; flex: 1; }
+  .article-preview-site {
+    font-size: 11px;
+    color: var(--color-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 3px;
+  }
+  .article-preview-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+  .article-preview-excerpt {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+  }
+  .article-preview-url {
+    font-size: 11px;
+    color: var(--color-text-tertiary);
+    margin-top: 6px;
+    word-break: break-all;
+  }
+
+  /* メディア背景（補助情報）カード */
+  .media-card {
+    background: var(--color-bg);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1.1rem 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .media-card .section-title { color: var(--color-text-tertiary); margin-bottom: 8px; }
+  .media-card-row { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 6px; }
+  .media-card-type {
+    font-size: 13px; font-weight: 600;
+  }
+  .media-card-note {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+  }
+
+  /* 静的ページ（使い方・免責事項） */
+  .static-page { display: none; }
+  .static-page h2 {
+    font-size: 19px; font-weight: 600; margin: 1.75rem 0 0.75rem;
+  }
+  .static-page h2:first-child { margin-top: 0; }
+  .static-page p, .static-page li {
+    font-size: 14px; color: var(--color-text-secondary); line-height: 1.8;
+  }
+  .static-page ul, .static-page ol { padding-left: 1.4em; margin-bottom: 0.5rem; }
+  .static-page .step-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.2rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .static-page .step-num {
+    flex-shrink: 0;
+    width: 24px; height: 24px;
+    background: var(--color-text-primary);
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600;
+  }
+  .back-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 13px; color: var(--color-text-secondary);
+    margin-bottom: 1.25rem; cursor: pointer; text-decoration: none;
+  }
+  .back-link:hover { color: var(--color-text-primary); }
 
   @media (max-width: 480px) {
     .score-section { flex-direction: column; text-align: center; }
@@ -274,15 +376,16 @@
 
 <header>
   <div class="header-inner">
-    <div class="logo"><i class="ti ti-scale"></i> VerityMeter</div>
+    <div class="logo" onclick="showPage('main')" style="cursor:pointer;"><i class="ti ti-scale"></i> VerityMeter</div>
     <nav class="header-links">
-      <a href="#about">使い方</a>
-      <a href="#disclaimer">免責事項</a>
+      <a href="#" onclick="showPage('howto'); return false;">使い方</a>
+      <a href="#" onclick="showPage('disclaimer'); return false;">免責事項</a>
     </nav>
   </div>
 </header>
 
 <main>
+  <div id="page-main">
   <div class="hero">
     <div class="hero-badge"><i class="ti ti-microscope"></i> AI信憑性診断</div>
     <h1>その記事、信頼できますか？</h1>
@@ -318,6 +421,17 @@
   </div>
 
   <div class="result" id="result">
+
+    <div class="article-preview" id="article-preview">
+      <div class="article-preview-icon"><i class="ti ti-file-text"></i></div>
+      <div class="article-preview-body">
+        <div class="article-preview-site" id="preview-site">—</div>
+        <div class="article-preview-title" id="preview-title">—</div>
+        <div class="article-preview-excerpt" id="preview-excerpt"></div>
+        <div class="article-preview-url" id="preview-url"></div>
+      </div>
+    </div>
+
     <div class="score-section">
       <div class="meter-wrap">
         <svg width="110" height="65" viewBox="0 0 100 60">
@@ -329,7 +443,6 @@
       </div>
       <div class="score-info">
         <div class="score-verdict" id="verdict-text">—</div>
-        <div class="score-source" id="source-url">—</div>
         <div class="score-summary" id="summary-text">—</div>
         <div class="tags" id="tags-area"></div>
       </div>
@@ -349,20 +462,90 @@
       <div class="section-title"><i class="ti ti-scale"></i> 総評</div>
       <p id="verdict-full" style="font-size:14px; color:var(--color-text-secondary);"></p>
     </div>
+
+    <div class="media-card" id="media-card">
+      <div class="section-title"><i class="ti ti-building-broadcast-tower"></i> 参考：媒体の傾向（補助情報）</div>
+      <div class="media-card-row">
+        <span class="tag tag-info" id="media-type">—</span>
+      </div>
+      <p class="media-card-note" id="media-note"></p>
+    </div>
   </div>
 
-  <div class="footer-note" id="disclaimer">
+  <div class="footer-note">
     AIによる分析は補助的なものであり、完全性・正確性を保証するものではありません。<br>
     最終的な判断はご自身の確認と責任のもとで行ってください。
   </div>
+  </div>
+
+  <div class="static-page" id="page-howto">
+    <a href="#" class="back-link" onclick="showPage('main'); return false;"><i class="ti ti-arrow-left"></i> トップに戻る</a>
+    <h2>VerityMeterの使い方</h2>
+    <p>VerityMeterは、ニュース記事のURLを入力するだけで、AIがその記事内容の信憑性を診断するツールです。</p>
+
+    <div class="step-card">
+      <div class="step-num">1</div>
+      <div>診断したい記事のURL（https://から始まるリンク）をコピーします。</div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">2</div>
+      <div>トップページの入力欄に貼り付け、「診断する」ボタンを押します。</div>
+    </div>
+    <div class="step-card">
+      <div class="step-num">3</div>
+      <div>数十秒ほどでAIが記事内容を分析し、信憑性スコア（0〜100）と詳細な評価が表示されます。</div>
+    </div>
+
+    <h2>スコアの見方</h2>
+    <ul>
+      <li><strong>80〜100：信憑性が高い</strong> ー 根拠が明確で、一次情報や複数ソースに基づいている</li>
+      <li><strong>65〜79：概ね信頼できる</strong> ー 大きな問題はないが一部確認不足な点がある</li>
+      <li><strong>45〜64：要注意・確認推奨</strong> ー 事実と憶測が混在している</li>
+      <li><strong>0〜44：信憑性が低い</strong> ー 根拠が薄い、誇張・扇動的な表現が目立つ</li>
+    </ul>
+
+    <h2>「媒体の傾向」について</h2>
+    <p>診断結果の下部には、参考情報として掲載メディアの一般的な傾向も表示されます。これはあくまで補助的な情報で、スコアの主な判断材料は「記事内容そのもの」です。同じメディアでも記事によって信憑性は変わるため、媒体名だけで信頼性を判断しないようご注意ください。</p>
+  </div>
+
+  <div class="static-page" id="page-disclaimer">
+    <a href="#" class="back-link" onclick="showPage('main'); return false;"><i class="ti ti-arrow-left"></i> トップに戻る</a>
+    <h2>免責事項</h2>
+    <p>VerityMeter（以下「当サイト」）は、AI（人工知能）を用いて記事の信憑性を分析し、参考情報として提供するものです。ご利用にあたっては、以下の点をご理解いただいたうえでご利用ください。</p>
+
+    <h2>診断結果の性質について</h2>
+    <ul>
+      <li>当サイトが提供するスコアおよび分析結果は、AIによる自動分析に基づくものであり、内容の正確性・完全性・最新性を保証するものではありません。</li>
+      <li>AIの分析には限界があり、判断を誤る可能性があります。特に、最新の出来事や専門的な内容については、誤った評価をする場合があります。</li>
+      <li>診断結果は断定的な「真偽の判定」ではなく、利用者ご自身が情報を吟味するための参考材料としてご活用ください。</li>
+    </ul>
+
+    <h2>利用上の注意</h2>
+    <ul>
+      <li>当サイトの診断結果を理由として生じたいかなる損害についても、運営者は責任を負いかねます。</li>
+      <li>記事の最終的な真偽判断は、必ず利用者ご自身の責任において行ってください。</li>
+      <li>当サイトは特定の媒体・個人・団体を誹謗中傷する意図はありません。診断結果に関するご指摘・ご意見がある場合はお問い合わせください。</li>
+    </ul>
+
+    <h2>著作権について</h2>
+    <p>診断対象となる記事の著作権は、各記事の著作者・掲載媒体に帰属します。当サイトは記事本文を複製・転載するものではなく、URLの内容を分析した要約・評価のみを表示します。</p>
+  </div>
+
 </main>
 
-<footer id="about">
+<footer>
   <p>VerityMeter — AIによる情報の目利き</p>
   <p style="margin-top:6px;">© 2026 VerityMeter</p>
 </footer>
 
 <script>
+function showPage(page) {
+  document.getElementById('page-main').style.display = (page === 'main') ? 'block' : 'none';
+  document.getElementById('page-howto').style.display = (page === 'howto') ? 'block' : 'none';
+  document.getElementById('page-disclaimer').style.display = (page === 'disclaimer') ? 'block' : 'none';
+  window.scrollTo(0, 0);
+}
+
 function fillExample(url) {
   document.getElementById('url-input').value = url;
   toggleClearBtn();
@@ -469,12 +652,17 @@ async function runCheck() {
 }
 
 function renderResult(d, url) {
+  // 記事プレビュー
+  document.getElementById('preview-site').textContent = d.article_site || 'この記事';
+  document.getElementById('preview-title').textContent = d.article_title || '(タイトルを取得できませんでした)';
+  document.getElementById('preview-excerpt').textContent = d.article_excerpt || '';
+  document.getElementById('preview-url').textContent = url.length > 70 ? url.slice(0, 70) + '…' : url;
+
   const score = Math.min(100, Math.max(0, d.score || 0));
   document.getElementById('score-num').textContent = score;
   setMeter(score);
 
   document.getElementById('verdict-text').textContent = d.verdict || '';
-  document.getElementById('source-url').textContent = url.length > 60 ? url.slice(0, 60) + '…' : url;
   document.getElementById('summary-text').textContent = d.summary || '';
 
   const tagsArea = document.getElementById('tags-area');
@@ -484,12 +672,6 @@ function renderResult(d, url) {
   pill.className = 'tag ' + mainTag.cls;
   pill.textContent = mainTag.label;
   tagsArea.appendChild(pill);
-  if (d.source_type) {
-    const st = document.createElement('span');
-    st.className = 'tag tag-info';
-    st.textContent = d.source_type;
-    tagsArea.appendChild(st);
-  }
   (d.tags || []).forEach(t => {
     const span = document.createElement('span');
     span.className = 'tag tag-warning';
@@ -515,6 +697,12 @@ function renderResult(d, url) {
     warnList.appendChild(li);
   });
   document.getElementById('warnings-card').style.display = (d.warnings && d.warnings.length) ? '' : 'none';
+
+  // メディア背景（補助情報）
+  const mb = d.media_background || {};
+  document.getElementById('media-type').textContent = mb.source_type || '不明';
+  document.getElementById('media-note').textContent = mb.media_note || '';
+  document.getElementById('media-card').style.display = (mb.source_type || mb.media_note) ? '' : 'none';
 
   document.getElementById('verdict-full').textContent = d.verdict_full || '';
   document.getElementById('result').style.display = 'block';
