@@ -678,7 +678,10 @@
 
   <div class="static-page" id="page-timeline">
     <a href="#" class="back-link" onclick="showPage('main'); return false;"><i class="ti ti-arrow-left"></i> トップに戻る</a>
-    <h2 style="margin-bottom:0.5rem;"><i class="ti ti-timeline"></i> 時系列マップ</h2>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+      <h2 style="margin-bottom:0;"><i class="ti ti-timeline"></i> 時系列マップ</h2>
+      <button onclick="resetTimelineData()" style="font-size:11px; color:var(--color-text-tertiary); background:none; border:1px solid var(--color-border); border-radius:var(--radius-md); padding:4px 10px; cursor:pointer;">データをリセット</button>
+    </div>
     <p style="font-size:13px; color:var(--color-text-tertiary); margin-bottom:1.5rem;">注目テーマのニュースが時間とともにどう変化したかを追跡します</p>
 
     <div class="timeline-themes">
@@ -847,8 +850,33 @@ function getSortKeyForLabel(label, theme) {
 }
 
 let activeTheme = null;
-let timelineData = {};
 let isBackfilling = false; // バックフィル実行中フラグ
+
+// localStorageから復元、なければ空オブジェクト
+const STORAGE_KEY = 'veritymeter_timeline_v1';
+let timelineData = {};
+try {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) timelineData = JSON.parse(saved);
+} catch(e) {
+  timelineData = {};
+}
+
+function saveTimelineData() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(timelineData));
+  } catch(e) {
+    console.warn('localStorage保存失敗:', e);
+  }
+}
+
+function resetTimelineData() {
+  if (!confirm('保存されたすべての時系列データを削除しますか？')) return;
+  timelineData = {};
+  localStorage.removeItem(STORAGE_KEY);
+  if (activeTheme) renderTimelineCards(activeTheme.id);
+  alert('データをリセットしました。');
+}
 
 function initTimeline() {
   const grid = document.getElementById('theme-grid');
@@ -976,6 +1004,7 @@ async function startBackfill() {
           }
           // sortKeyで数値ソート（日本語文字列ソートより確実）
           timelineData[currentThemeId].sort((a, b) => (a.sortKey || 0) - (b.sortKey || 0));
+          saveTimelineData();
           renderTimelineCards(currentThemeId);
         }
       }
@@ -1037,6 +1066,7 @@ async function updateTimeline() {
         timelineData[currentThemeId].push(entry);
       }
       timelineData[currentThemeId].sort((a, b) => (a.sortKey || 0) - (b.sortKey || 0));
+      saveTimelineData();
       renderTimelineCards(currentThemeId);
     }
   } catch(e) {
