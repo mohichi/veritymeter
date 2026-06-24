@@ -689,9 +689,20 @@
     <div class="timeline-view" id="timeline-view" style="display:none;">
       <div class="timeline-header">
         <div class="timeline-title" id="timeline-title"></div>
-        <button class="btn-update" id="btn-update" onclick="updateTimeline()">
-          <i class="ti ti-refresh"></i> 最新情報を取得
-        </button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-update" id="btn-backfill" onclick="startBackfill()" style="background:var(--color-text-secondary);">
+            <i class="ti ti-history"></i> 過去を遡る
+          </button>
+          <button class="btn-update" id="btn-update" onclick="updateTimeline()">
+            <i class="ti ti-refresh"></i> 最新情報を取得
+          </button>
+        </div>
+      </div>
+      <div id="backfill-progress" style="display:none; margin-bottom:1rem;">
+        <div style="font-size:13px; color:var(--color-text-secondary); margin-bottom:6px;" id="backfill-status">調査中...</div>
+        <div style="background:var(--color-border); border-radius:99px; height:6px; overflow:hidden;">
+          <div id="backfill-bar" style="background:var(--color-text-primary); height:100%; width:0%; transition:width 0.3s;"></div>
+        </div>
       </div>
       <div class="timeline-loading" id="timeline-loading">
         <div class="loading-spinner" style="margin:0 auto 10px;"></div>
@@ -773,10 +784,60 @@ function showPage(page) {
 
 // ===== 時系列マップ =====
 const TIMELINE_THEMES = [
-  { id: "us-iran", name: "米国・イラン情勢", desc: "双方の主張と外交の変化を追跡", keywords: "米国 イラン 外交 制裁 核合意" },
-  { id: "bear", name: "クマの出没情報", desc: "全国のクマ出没・被害状況を追跡", keywords: "クマ 出没 被害 目撃 注意" },
-  { id: "naphtha", name: "ナフサ不足問題", desc: "石油化学原料の需給変化を追跡", keywords: "ナフサ 不足 石油化学 供給 価格" },
+  {
+    id: "us-iran",
+    name: "米国・イラン情勢",
+    desc: "双方の主張と外交の変化を追跡",
+    keywords: "米国 イラン 外交 制裁 核合意 軍事",
+    granularity: "month",   // 月単位
+    startYear: 2025, startMonth: 2,  // 2025年2月から
+  },
+  {
+    id: "bear",
+    name: "クマの出没情報",
+    desc: "全国のクマ出没・被害状況を追跡",
+    keywords: "クマ 出没 被害 目撃 注意 捕獲 環境省",
+    granularity: "year",    // 年単位
+    startYear: 2022,
+  },
+  {
+    id: "naphtha",
+    name: "ナフサ不足問題",
+    desc: "石油化学原料の需給変化を追跡",
+    keywords: "ナフサ 不足 石油化学 供給 価格 エチレン",
+    granularity: "quarter", // 四半期単位
+    startYear: 2023, startQuarter: 1,
+  },
 ];
+
+// 期間ラベルを生成する関数
+function generatePeriods(theme) {
+  const periods = [];
+  const now = new Date();
+
+  if (theme.granularity === "year") {
+    for (let y = theme.startYear; y <= now.getFullYear(); y++) {
+      periods.push({ label: `${y}年`, year: y });
+    }
+  } else if (theme.granularity === "month") {
+    let y = theme.startYear;
+    let m = theme.startMonth || 1;
+    while (y < now.getFullYear() || (y === now.getFullYear() && m <= now.getMonth() + 1)) {
+      periods.push({ label: `${y}年${m}月`, year: y, month: m });
+      m++;
+      if (m > 12) { m = 1; y++; }
+    }
+  } else if (theme.granularity === "quarter") {
+    let y = theme.startYear;
+    let q = theme.startQuarter || 1;
+    while (y < now.getFullYear() || (y === now.getFullYear() && q <= Math.ceil((now.getMonth() + 1) / 3))) {
+      periods.push({ label: `${y}年Q${q}`, year: y, quarter: q });
+      q++;
+      if (q > 4) { q = 1; y++; }
+    }
+  }
+  return periods;
+}
 
 let activeTheme = null;
 let timelineData = {};
@@ -837,7 +898,73 @@ function renderTimelineCards(themeId) {
   });
 }
 
-async function updateTimeline() {
+async function startBackfill() {
+  if (!activeTheme) return;
+
+  const periods = generatePeriods(activeTheme);
+  const existing = (timelineData[activeTheme.id] || []).map(d => d.date);
+  const remaining = periods.filter(p => !existing.includes(p.label));
+
+  if (remaining.length === 0) {
+    alert('すべての期間のデータが既に読み込まれています。');
+    return;
+  }
+
+  const btnBackfill = document.getElementById('btn-backfill');
+  const btnUpdate = document.getElementById('btn-update');
+  const progress = document.getElementById('backfill-progress');
+  const status = document.getElementById('backfill-status');
+  const bar = document.getElementById('backfill-bar');
+
+  btnBackfill.disabled = true;
+  btnUpdate.disabled = true;
+  progress.style.display = 'block';
+
+  for (let i = 0; i < remaining.length; i++) {
+    const period = remaining[i];
+    status.textContent = `${period.label}を調査中... (${i + 1}/${remaining.length})`;
+    bar.style.width = `${Math.round((i / remaining.length) * 100)}%`;
+
+    try {
+      const prevData = timelineData[activeTheme.id] || [];
+      const res = await fetch('/api/timeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          themeId: activeTheme.id,
+          themeName: activeTheme.name,
+          keywords: activeTheme.keywords,
+          previousData: prevData,
+          period: period,
+        })
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.entry) {
+          if (!timelineData[activeTheme.id]) timelineData[activeTheme.id] = [];
+          // 日付順に挿入
+          timelineData[activeTheme.id].push(json.entry);
+          timelineData[activeTheme.id].sort((a, b) => a.date.localeCompare(b.date));
+          renderTimelineCards(activeTheme.id);
+        }
+      }
+    } catch(e) {
+      console.error(`Error fetching ${period.label}:`, e);
+    }
+
+    // 次の期間まで待機（レート制限対策）
+    if (i < remaining.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 8000));
+    }
+  }
+
+  bar.style.width = '100%';
+  status.textContent = `完了しました（${remaining.length}期間）`;
+  setTimeout(() => { progress.style.display = 'none'; }, 3000);
+  btnBackfill.disabled = false;
+  btnUpdate.disabled = false;
+}
   if (!activeTheme) return;
   const btn = document.getElementById('btn-update');
   const loading = document.getElementById('timeline-loading');
