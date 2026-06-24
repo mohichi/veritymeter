@@ -1,6 +1,7 @@
 // Cloudflare Pages Functions
 // /api/timeline
-// 指定されたテーマについてAIがウェブ検索し、最新の状況と前回からの変化を返す
+// 指定されたテーマについてAIがウェブ検索し、状況と前回からの変化を返す
+// period が指定された場合は、その期間（例：2025年2月、2023年）の過去調査を行う
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -13,7 +14,9 @@ export async function onRequestPost(context) {
 
   try {
     const body = await request.json();
-    const { themeId, themeName, keywords, previousData } = body;
+    const { themeId, themeName, keywords, previousData, period } = body;
+    // period: { label: "2025年2月", year: 2025, month: 2 } のような形式
+    // period が null/undefined の場合は「今日の最新情報」を取得
 
     if (!themeId || !themeName || !keywords) {
       return new Response(JSON.stringify({ error: "必要なパラメータが不足しています" }), {
@@ -31,31 +34,35 @@ export async function onRequestPost(context) {
     }
 
     const today = new Date().toISOString().slice(0, 10);
+    const targetPeriod = period ? period.label : today;
+    const isPast = !!period;
+
     const lastEntry = previousData && previousData.length > 0
       ? previousData[previousData.length - 1]
       : null;
 
     const systemPrompt = `あなたはニュース調査・信憑性診断の専門AIです。
-指定されたテーマについてウェブ検索し、最新の状況を調査してください。
+指定されたテーマについてウェブ検索し、指定期間の状況を調査してください。
+公式統計・白書・政府発表・主要報道機関の記事を優先的に参照してください。
 必ずJSONのみで返答すること。最初の文字は必ず「{」であること。前置きや説明、コードブロックマーカーは一切不要。
 
 JSON形式：
 {
-  "headline": "本日の最も重要なニュースの見出し（40文字以内）",
-  "url": "該当記事のURL",
-  "source": "情報源のメディア名",
-  "summary": "現在の状況の要約（60文字以内）",
-  "score": 数値(0-100、情報の信憑性スコア),
-  "diff": "前回から変化した点（40文字以内）。前回データがない場合は空文字"
+  "headline": "その期間の最も重要な動向の見出し（40文字以内）",
+  "url": "最も信頼性の高い参考記事・資料のURL",
+  "source": "情報源のメディア名・機関名",
+  "summary": "その期間の状況の要約（80文字以内）",
+  "diff": "前の期間から変化した点（40文字以内）。前回データがない場合は空文字"
 }`;
 
     const userPrompt = `テーマ：${themeName}
 検索キーワード：${keywords}
-調査日：${today}
+調査対象期間：${targetPeriod}
+${isPast ? '※これは過去の期間の調査です。その期間に実際に起きたことを調査してください。公式統計・白書・政府発表も参照してください。' : ''}
 
-${lastEntry ? `前回の状況（${lastEntry.date}時点）：${lastEntry.summary}` : '（初回調査）'}
+${lastEntry ? `前の期間の状況（${lastEntry.date}）：${lastEntry.summary}` : '（初回調査）'}
 
-このテーマについて本日の最新情報を調査し、JSONで返してください。`;
+この期間の状況をJSONで返してください。`;
 
     const apiRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -113,12 +120,12 @@ ${lastEntry ? `前回の状況（${lastEntry.date}時点）：${lastEntry.summar
     }
 
     const entry = {
-      date: today,
+      date: targetPeriod,
+      isPast: isPast,
       headline: json.headline || "",
       url: json.url || "#",
       source: json.source || "AI調査",
       summary: json.summary || "",
-      score: Math.min(100, Math.max(0, json.score || 50)),
       diff: json.diff || "",
     };
 
