@@ -965,6 +965,8 @@ async function startBackfill() {
   btnBackfill.disabled = false;
   btnUpdate.disabled = false;
 }
+
+async function updateTimeline() {
   if (!activeTheme) return;
   const btn = document.getElementById('btn-update');
   const loading = document.getElementById('timeline-loading');
