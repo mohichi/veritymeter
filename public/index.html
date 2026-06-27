@@ -765,6 +765,12 @@
 
   <!-- 記事診断モード -->
   <div id="mode-article">
+
+  <!-- 診断タイプ切り替え -->
+  <div style="display:flex; gap:8px; margin-bottom:1.25rem;">
+    <button id="tab-article" onclick="switchDiagTab('article')" style="flex:1; padding:8px; font-size:13px; font-weight:600; border-radius:var(--radius-md); border:1px solid var(--color-text-primary); background:var(--color-text-primary); color:#fff; cursor:pointer;">📰 記事を診断</button>
+    <button id="tab-video" onclick="switchDiagTab('video')" style="flex:1; padding:8px; font-size:13px; font-weight:600; border-radius:var(--radius-md); border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text-secondary); cursor:pointer;">🎬 動画を診断</button>
+  </div>
   <div class="hero">
     <div class="hero-badge"><i class="ti ti-microscope"></i> AI信憑性診断</div>
     <h1>その記事、信頼できますか？</h1>
@@ -785,6 +791,8 @@
     </a>
   </div>
 
+  <!-- 記事診断エリア -->
+  <div id="diag-article">
   <div class="trivia-card" id="trivia-card">
     <i class="ti ti-bulb trivia-icon"></i>
     <div>
@@ -910,7 +918,70 @@
 
       </div>
     </div>
-  </div>
+  </div><!-- /diag-article -->
+
+  <!-- 動画診断エリア -->
+  <div id="diag-video" style="display:none;">
+    <div class="input-area">
+      <div style="font-size:14px; font-weight:600; margin-bottom:10px;">🎬 YouTubeのURLを入力</div>
+      <div class="input-row">
+        <div class="input-wrap">
+          <input type="text" id="video-url-input" placeholder="https://www.youtube.com/watch?v=..." />
+          <button type="button" class="clear-btn" id="video-clear-btn" onclick="clearVideoInput()" aria-label="入力をクリア">
+            <i class="ti ti-x"></i>
+          </button>
+        </div>
+        <button class="btn-check" id="video-check-btn" onclick="runVideoCheck()">
+          <i class="ti ti-search"></i>診断する
+        </button>
+      </div>
+      <div style="font-size:12px; color:var(--color-text-tertiary); margin-top:8px;">
+        ※ 字幕（自動生成を含む）がある動画に対応しています
+      </div>
+    </div>
+
+    <div class="error-box" id="video-error-box" style="display:none;">
+      <i class="ti ti-alert-circle"></i> <span id="video-error-msg"></span>
+    </div>
+
+    <div class="loading" id="video-loading" style="display:none;">
+      <div class="loading-spinner"></div>
+      <p>字幕を取得して分析しています...</p>
+    </div>
+
+    <div id="video-result" style="display:none;">
+      <div class="score-section">
+        <div class="meter-wrap">
+          <svg width="110" height="65" viewBox="0 0 100 60">
+            <path d="M10 55 A45 45 0 0 1 90 55" fill="none" stroke="#E5E3DD" stroke-width="8" stroke-linecap="round"/>
+            <path id="video-meter-arc" d="M10 55 A45 45 0 0 1 90 55" fill="none" stroke="#888" stroke-width="8" stroke-linecap="round" stroke-dasharray="0 141"/>
+          </svg>
+          <div class="meter-label" id="video-score-num">—</div>
+          <div class="meter-sub">/ 100</div>
+        </div>
+        <div class="score-info">
+          <div class="score-verdict" id="video-verdict-text">—</div>
+          <div class="score-summary" id="video-summary-text">—</div>
+          <div class="tags" id="video-tags-area"></div>
+        </div>
+      </div>
+
+      <div class="section-card" id="video-positives-card">
+        <div class="section-title"><i class="ti ti-circle-check" style="color:var(--color-success-text)"></i> 信頼できる点</div>
+        <ul class="check-list" id="video-positives-list"></ul>
+      </div>
+
+      <div class="section-card" id="video-warnings-card">
+        <div class="section-title"><i class="ti ti-alert-triangle" style="color:var(--color-warning-text)"></i> 注意が必要な内容</div>
+        <ul class="warning-list" id="video-warnings-list"></ul>
+      </div>
+
+      <div class="section-card">
+        <div class="section-title"><i class="ti ti-scale"></i> 総評</div>
+        <p id="video-verdict-full" style="font-size:14px; color:var(--color-text-secondary);"></p>
+      </div>
+    </div>
+  </div><!-- /diag-video -->
 
   <div class="daily-section">
     <div class="daily-section-header">
@@ -1232,7 +1303,128 @@ function renderVerdictCard(d) {
   card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// ===== 時系列マップ =====
+// ===== 診断タブ切り替え =====
+function switchDiagTab(tab) {
+  const isArticle = tab === 'article';
+  document.getElementById('diag-article').style.display = isArticle ? 'block' : 'none';
+  document.getElementById('diag-video').style.display = isArticle ? 'none' : 'block';
+  document.getElementById('tab-article').style.cssText = isArticle
+    ? 'flex:1; padding:8px; font-size:13px; font-weight:600; border-radius:var(--radius-md); border:1px solid var(--color-text-primary); background:var(--color-text-primary); color:#fff; cursor:pointer;'
+    : 'flex:1; padding:8px; font-size:13px; font-weight:600; border-radius:var(--radius-md); border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text-secondary); cursor:pointer;';
+  document.getElementById('tab-video').style.cssText = isArticle
+    ? 'flex:1; padding:8px; font-size:13px; font-weight:600; border-radius:var(--radius-md); border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text-secondary); cursor:pointer;'
+    : 'flex:1; padding:8px; font-size:13px; font-weight:600; border-radius:var(--radius-md); border:1px solid var(--color-text-primary); background:var(--color-text-primary); color:#fff; cursor:pointer;';
+}
+
+function clearVideoInput() {
+  document.getElementById('video-url-input').value = '';
+  document.getElementById('video-error-box').style.display = 'none';
+  document.getElementById('video-result').style.display = 'none';
+}
+
+function setVideoMeter(score) {
+  const arc = document.getElementById('video-meter-arc');
+  const total = 141;
+  const filled = (score / 100) * total;
+  arc.setAttribute('stroke-dasharray', filled + ' ' + (total - filled));
+  let color = score >= 70 ? '#3B6D11' : score >= 45 ? '#BA7517' : '#A32D2D';
+  arc.setAttribute('stroke', color);
+}
+
+async function runVideoCheck() {
+  const url = document.getElementById('video-url-input').value.trim();
+  if (!url) { return; }
+
+  const errorBox = document.getElementById('video-error-box');
+  const loading = document.getElementById('video-loading');
+  const result = document.getElementById('video-result');
+  const btn = document.getElementById('video-check-btn');
+
+  errorBox.style.display = 'none';
+  result.style.display = 'none';
+  loading.style.display = 'block';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/video-check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+
+    loading.style.display = 'none';
+    btn.disabled = false;
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      document.getElementById('video-error-msg').textContent = json.error || 'エラーが発生しました';
+      errorBox.style.display = 'block';
+      return;
+    }
+
+    renderVideoResult(json);
+
+  } catch(e) {
+    loading.style.display = 'none';
+    btn.disabled = false;
+    document.getElementById('video-error-msg').textContent = '通信エラーが発生しました';
+    errorBox.style.display = 'block';
+  }
+}
+
+function renderVideoResult(d) {
+  const score = Math.min(100, Math.max(0, d.score || 0));
+  document.getElementById('video-score-num').textContent = score;
+  setVideoMeter(score);
+  document.getElementById('video-verdict-text').textContent = d.verdict || '';
+  document.getElementById('video-summary-text').textContent = d.summary || '';
+
+  const tagsArea = document.getElementById('video-tags-area');
+  tagsArea.innerHTML = '';
+  const mainTag = getVerdictTag(score);
+  const pill = document.createElement('span');
+  pill.className = 'tag ' + mainTag.cls;
+  pill.textContent = mainTag.label;
+  tagsArea.appendChild(pill);
+  if (d.content_type) {
+    const typePill = document.createElement('span');
+    typePill.className = 'tag tag-info';
+    typePill.textContent = d.content_type;
+    tagsArea.appendChild(typePill);
+  }
+  (d.tags || []).forEach(t => {
+    const span = document.createElement('span');
+    span.className = 'tag tag-warning';
+    span.textContent = t;
+    tagsArea.appendChild(span);
+  });
+
+  const posList = document.getElementById('video-positives-list');
+  posList.innerHTML = '';
+  (d.positives || []).forEach(p => {
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="check-icon ti ti-circle-check" style="color:var(--color-success-text)"></span><span>' + p.text + '</span>';
+    posList.appendChild(li);
+  });
+  document.getElementById('video-positives-card').style.display = (d.positives && d.positives.length) ? '' : 'none';
+
+  const warnList = document.getElementById('video-warnings-list');
+  warnList.innerHTML = '';
+  (d.warnings || []).forEach(w => {
+    const li = document.createElement('li');
+    li.innerHTML = '<strong><i class="ti ti-alert-triangle"></i> ' + w.text + '</strong>';
+    warnList.appendChild(li);
+  });
+  document.getElementById('video-warnings-card').style.display = (d.warnings && d.warnings.length) ? '' : 'none';
+
+  document.getElementById('video-verdict-full').textContent = d.verdict_full || '';
+  document.getElementById('video-result').style.display = 'block';
+}
+
+document.getElementById('video-url-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') runVideoCheck();
+});
 const TIMELINE_THEMES = [
   {
     id: "us-iran",
