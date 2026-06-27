@@ -1173,6 +1173,14 @@ function switchMode(mode) {
   document.getElementById('mode-factcheck').style.display = mode === 'factcheck' ? 'block' : 'none';
   document.getElementById('mode-btn-article').classList.toggle('active', mode === 'article');
   document.getElementById('mode-btn-factcheck').classList.toggle('active', mode === 'factcheck');
+  // daily-sectionとsection-timelineはmode-articleの内側だが念のため制御
+  const isArticle = mode === 'article';
+  const dailySection = document.querySelector('.daily-section');
+  const timelineSection = document.getElementById('section-timeline');
+  const footerNote = document.querySelector('.footer-note');
+  if (dailySection) dailySection.style.display = isArticle ? '' : 'none';
+  if (timelineSection) timelineSection.style.display = isArticle ? 'block' : 'none';
+  if (footerNote) footerNote.style.display = isArticle ? '' : 'none';
   if (mode === 'factcheck') initFactCheck();
   if (mode === 'article') initTimeline();
   window.scrollTo(0, 0);
