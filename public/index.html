@@ -986,7 +986,10 @@
 
     <div class="factcheck-input-area">
       <div style="font-size:14px; font-weight:600; margin-bottom:10px;">うわさ・デマを自由に検証</div>
-      <textarea class="factcheck-input" id="factcheck-input" placeholder="例：人間は脳の10%しか使っていない&#10;例：血液型と性格は関係がある&#10;例：コーヒーを飲むと背が伸びなくなる"></textarea>
+      <div style="position:relative;">
+        <textarea class="factcheck-input" id="factcheck-input" placeholder="例：人間は脳の10%しか使っていない&#10;例：血液型と性格は関係がある&#10;例：コーヒーを飲むと背が伸びなくなる"></textarea>
+        <button onclick="clearFactcheckInput()" style="position:absolute; top:8px; right:8px; background:var(--color-border); border:none; border-radius:50%; width:22px; height:22px; cursor:pointer; font-size:12px; color:var(--color-text-secondary); display:flex; align-items:center; justify-content:center; padding:0;">✕</button>
+      </div>
       <button class="btn-check" id="factcheck-btn" onclick="runFactCheck()" style="width:100%; justify-content:center;">
         <i class="ti ti-search"></i> 真偽を検証する
       </button>
@@ -1174,6 +1177,11 @@ function showDemaDetail(dema) {
   document.getElementById('factcheck-input').value = dema.claim;
   renderVerdictCard(dema);
   window.scrollTo(0, 0);
+}
+
+function clearFactcheckInput() {
+  document.getElementById('factcheck-input').value = '';
+  document.getElementById('factcheck-verdict-card').style.display = 'none';
 }
 
 async function runFactCheck() {
@@ -1576,11 +1584,11 @@ async function loadDailyNews() {
     }
 
     dailyNewsData = json;
-    renderMediaTabs();
     if (json.media && json.media.length > 0) {
       activeMediaId = json.media[0].mediaId;
       renderNewsList(activeMediaId);
     }
+    renderMediaTabs(); // activeMediaId設定後に描画
 
     const dateEl = document.getElementById('daily-date');
     if (json.date) dateEl.textContent = json.date + ' 更新';
