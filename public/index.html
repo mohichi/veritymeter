@@ -1579,7 +1579,7 @@ function renderTimelineCards(themeId) {
     return;
   }
 
-  data.slice().reverse().forEach((item, idx) => {
+  data.slice(-5).reverse().forEach((item, idx) => {
     const card = document.createElement('div');
     card.className = 'timeline-card';
     const scoreColor = item.score >= 70 ? '#3B6D11' : item.score >= 45 ? '#BA7517' : '#A32D2D';
